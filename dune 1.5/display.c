@@ -97,33 +97,13 @@ void display_map(char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]) {
 		for (int j = 0; j < MAP_WIDTH; j++) {
 			if (frontbuf[i][j] != backbuf[i][j]) {
 				POSITION pos = { i, j };
-
-				// 좌측 하단 2x2 영역의 'B'는 COLOR_BLUE로 출력
-				if ((i >= MAP_HEIGHT - 3 && i <= MAP_HEIGHT - 2) && (j >= 1 && j <= 2) && backbuf[i][j] == 'B') {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_BLUE);
-				}
-				// 우측 상단 2x2 영역의 'B'는 COLOR_RED로 출력
-				else if ((i >= 1 && i <= 2) && (j >= MAP_WIDTH - 3 && j <= MAP_WIDTH - 2) && backbuf[i][j] == 'B') {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_RED);
-				}
-				else if (i == MAP_HEIGHT - 4 && j == 1 && backbuf[i][j] == 'H') {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_BLUE);  // H를 파란색으로 출력
-				}
-				else if (i == 3 && j == MAP_WIDTH - 2 && backbuf[i][j] == 'H') {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_RED);  // H를 빨간색으로 출력
-				}
-				else if (backbuf[i][j] == 'W') {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_DarkYellow);
-				}
-				// 그 외 문자는 기본 색상으로 출력
-				else {
-					printc(padd(map_pos, pos), backbuf[i][j], COLOR_DEFAULT);
-				}
+				printc(padd(map_pos, pos), backbuf[i][j], COLOR_DEFAULT);
 			}
 			frontbuf[i][j] = backbuf[i][j];
 		}
 	}
 }
+
 
 
 

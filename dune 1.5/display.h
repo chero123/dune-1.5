@@ -18,6 +18,10 @@
 #define COLOR_RED 12
 #define COLOR_BLACK 0
 #define COLOR_DarkYellow 6
+#define COLOR_BLUE_BACKGROUND BACKGROUND_BLUE
+#define COLOR_RED_BACKGROUND BACKGROUND_RED
+#define COLOR_DEFAULT_BACKGROUND 0
+
 
 // 지금은 자원, 맵, 커서만 표시
 // 앞으로 화면에 표시할 내용들 여기에 추가하기
