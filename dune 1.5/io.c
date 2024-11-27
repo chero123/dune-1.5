@@ -2,7 +2,6 @@
 * raw(?) I/O
 */
 #include "io.h"
-#include "common.h"
 
 void gotoxy(POSITION pos) {
 	COORD coord = { pos.column, pos.row }; // 행, 열 반대로 전달
@@ -27,11 +26,6 @@ KEY get_key(void) {
 	}
 
 	int byte = _getch();    // 입력된 키를 전달 받기
-
-	if (byte == 32) {  // 스페이스바
-		return k_space;
-	}
-
 	switch (byte) {
 	case 'q': return k_quit;  // 'q'를 누르면 종료
 	case 224:

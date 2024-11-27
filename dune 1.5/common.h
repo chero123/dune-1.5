@@ -14,6 +14,7 @@
 #define MAP_WIDTH	60
 #define MAP_HEIGHT	18
 
+
 /* ================= 위치와 방향 =================== */
 // 맵에서 위치를 나타내는 구조체
 typedef struct {
@@ -33,7 +34,6 @@ typedef enum {
 	k_none = 0, k_up, k_right, k_left, k_down,
 	k_quit,
 	k_undef, // 정의되지 않은 키 입력	
-	k_space
 } KEY;
 
 
@@ -93,4 +93,3 @@ typedef struct {
 } OBJECT_SAMPLE;
 
 #endif
-

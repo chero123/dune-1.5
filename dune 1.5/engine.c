@@ -1,21 +1,15 @@
-// 1) 일부 초기배치 구현
-// 2) 방향키 더블클릭했을때 연속이동과 스페이스바를 눌렀을때 상태표시 구현
-
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
 #include "common.h"
 #include "io.h"
 #include "display.h"
-#include <windows.h>
-#include <time.h>
 
 void init(void);
 void intro(void);
 void outro(void);
 void cursor_move(DIRECTION dir);
 void sample_obj_move(void);
-void handle_spacebar(CURSOR cursor);
 POSITION sample_obj_next_position(void);
 
 
@@ -40,9 +34,7 @@ OBJECT_SAMPLE obj = {
 	.repr = 'o',
 	.speed = 300,
 	.next_move_time = 300
-
 };
-
 
 /* ================= main() =================== */
 int main(void) {
@@ -63,10 +55,6 @@ int main(void) {
 		else {
 			// 방향키 외의 입력
 			switch (key) {
-			case k_space:
-				// 스페이스바를 눌렀을 때 출력할 메시지 처리
-				handle_spacebar(cursor);  // 예: 커서 위치에 따라 메시지 출력	
-				break;
 			case k_quit: outro();
 			case k_none:
 			case k_undef:
@@ -86,12 +74,8 @@ int main(void) {
 
 /* ================= subfunctions =================== */
 void intro(void) {
-	printf(" DDDD   U   U   N   N   EEEEE	\n");
-	printf(" D   D  U   U   NN  N   E		\n");
-	printf(" D   D  U   U   N N N   EEEE	\n");
-	printf(" D   D  U   U   N  NN   E		\n");
-	printf(" DDDD   UUUUU   N   N   EEEEE	\n");
-	Sleep(1000);
+	printf("DUNE 1.5\n");
+	Sleep(2000);
 	system("cls");
 }
 
@@ -124,104 +108,21 @@ void init(void) {
 
 	// object sample
 	map[1][obj.pos.row][obj.pos.column] = 'o';
-
-	map[0][MAP_HEIGHT - 3][1] = 'B';
-	map[0][MAP_HEIGHT - 3][2] = 'B';
-	map[0][MAP_HEIGHT - 2][1] = 'B';
-	map[0][MAP_HEIGHT - 2][2] = 'B';
-
-	map[0][1][MAP_WIDTH - 3] = 'B';
-	map[0][1][MAP_WIDTH - 2] = 'B';
-	map[0][2][MAP_WIDTH - 3] = 'B';
-	map[0][2][MAP_WIDTH - 2] = 'B';
-
-	map[0][MAP_HEIGHT - 3][3] = 'P';
-	map[0][MAP_HEIGHT - 3][4] = 'P';
-	map[0][MAP_HEIGHT - 2][3] = 'P';
-	map[0][MAP_HEIGHT - 2][4] = 'P';
-
-	map[0][1][MAP_WIDTH - 5] = 'P';
-	map[0][1][MAP_WIDTH - 4] = 'P';
-	map[0][2][MAP_WIDTH - 5] = 'P';
-	map[0][2][MAP_WIDTH - 4] = 'P';
-
-	map[0][9][38] = 'R';
-	map[0][6][14] = 'R';
-	map[0][14][36] = 'R';
-
-	// 2x2 바위들
-	map[0][10][25] = 'R';
-	map[0][10][26] = 'R';
-	map[0][11][25] = 'R';
-	map[0][11][26] = 'R';
-
-	map[0][3][21] = 'R';
-	map[0][3][22] = 'R';
-	map[0][4][21] = 'R';
-	map[0][4][22] = 'R';
-
-	map[1][MAP_HEIGHT - 4][1] = 'H'; // 아래 본진 위에 H
-	map[1][3][MAP_WIDTH - 2] = 'H'; // 위 본진 아래에 H
-
-	map[0][5][7] = 'W';
-	map[0][MAP_HEIGHT - 9][MAP_WIDTH - 11] = 'W';
 }
 
-
-
-
-DIRECTION last_direction = d_stay;   // 마지막 방향 입력
-int consecutive_moves = 0;           // 연속된 방향 입력 횟수
-clock_t last_move_time = 0;          // 마지막 입력 시간
-
+// (가능하다면) 지정한 방향으로 커서 이동
 void cursor_move(DIRECTION dir) {
 	POSITION curr = cursor.current;
-	clock_t current_time = clock();
+	POSITION new_pos = pmove(curr, dir);
 
-	// 연속 입력 시간 차이 계산
-	double time_diff = (double)(current_time - last_move_time) / CLOCKS_PER_SEC;
+	// validation check
+	if (1 <= new_pos.row && new_pos.row <= MAP_HEIGHT - 2 && \
+		1 <= new_pos.column && new_pos.column <= MAP_WIDTH - 2) {
 
-	// 0.3초 이내에 같은 방향 입력이 들어오면 연속 이동 증가
-	if (last_direction == dir && time_diff <= 0.3) {
-		consecutive_moves++;
+		cursor.previous = cursor.current;
+		cursor.current = new_pos;
 	}
-	else {
-		consecutive_moves = 1;  // 조건에 맞지 않으면 연속 이동 초기화
-	}
-
-	last_direction = dir;
-	last_move_time = current_time;
-
-	// 이동 거리: 연속 입력이 두 번 이상이면 4칸, 아니면 1칸 이동
-	int move_distance = (consecutive_moves >= 2) ? 4 : 1;
-
-	POSITION new_pos = curr;  // 최종 위치를 계산할 변수
-
-	// 이동 거리만큼 반복하여 이동
-	for (int i = 0; i < move_distance; i++) {
-		POSITION next_pos = pmove(new_pos, dir);
-
-		// 맵 경계를 벗어나지 않도록 validation check 유지
-		if (1 <= next_pos.row && next_pos.row <= MAP_HEIGHT - 2 &&
-			1 <= next_pos.column && next_pos.column <= MAP_WIDTH - 2) {
-			new_pos = next_pos; // 최종 위치만 갱신
-		}
-		else {
-			break; // 맵 경계를 벗어나면 이동 중단
-		}
-	}
-
-	// 이동이 완료된 후에 한 번만 이전 위치와 현재 위치를 갱신
-	cursor.previous = cursor.current;
-	cursor.current = new_pos;
 }
-
-
-
-
-
-
-
 
 /* ================= sample object movement =================== */
 POSITION sample_obj_next_position(void) {
@@ -280,4 +181,3 @@ void sample_obj_move(void) {
 
 	obj.next_move_time = sys_clock + obj.speed;
 }
-
