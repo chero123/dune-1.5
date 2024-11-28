@@ -13,7 +13,8 @@
 #define N_LAYER 2
 #define MAP_WIDTH	60
 #define MAP_HEIGHT	18
-
+#define MAX_OBJECTS 50 
+#define MAX_SYSTEM_MESSAGES 10
 
 /* ================= 위치와 방향 =================== */
 // 맵에서 위치를 나타내는 구조체
@@ -34,6 +35,8 @@ typedef enum {
 	k_none = 0, k_up, k_right, k_left, k_down,
 	k_quit,
 	k_undef, // 정의되지 않은 키 입력	
+	k_esc,
+	k_space
 } KEY;
 
 
@@ -42,6 +45,10 @@ typedef enum {
 	d_stay = 0, d_up, d_right, d_left, d_down
 } DIRECTION;
 
+typedef enum {
+	BS_NONE,        // 선택된 건물 없음
+	BS_BASE_SELECTED // 본부 선택됨
+} BASE_SELECT_STATE;
 
 /* ================= 위치와 방향(2) =================== */
 // 편의성을 위한 함수들. KEY, POSITION, DIRECTION 구조체들을 유기적으로 변환
@@ -84,12 +91,21 @@ typedef struct {
 
 // 대강 만들어 봤음. 기능 추가하면서 각자 수정할 것
 typedef struct {
-	POSITION pos;		// 현재 위치(position)
-	POSITION dest;		// 목적지(destination)
-	char repr;			// 화면에 표시할 문자(representation)
-	int move_period;	// '몇 ms마다 한 칸 움직이는지'를 뜻함
-	int next_move_time;	// 다음에 움직일 시간
+	POSITION pos;
+	POSITION dest;
+	char repr;
+	int move_period;
+	int next_move_time;
 	int speed;
-} OBJECT_SAMPLE;
+	int team;           // 0: 중립, 1: 아트레이디스, 2: 하코넨
+	int hp;             // 체력
+	int max_hp;         // 최대 체력
+} OBJECT;
+
+typedef struct {
+	char messages[MAX_SYSTEM_MESSAGES][100];  // 메시지 저장 배열
+	int current_index;  // 가장 최근 메시지 인덱스
+	int message_count;  // 현재 메시지 개수
+} SYSTEM_MESSAGE;
 
 #endif

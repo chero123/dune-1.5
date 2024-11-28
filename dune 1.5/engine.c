@@ -1,15 +1,23 @@
+// 1) 일부 초기배치 구현
+// 2) 방향키 더블클릭했을때 연속이동과 스페이스바를 눌렀을때 상태표시 구현
+
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
 #include "common.h"
 #include "io.h"
 #include "display.h"
+#include <windows.h>
+#include <time.h>
 
 void init(void);
 void intro(void);
 void outro(void);
 void cursor_move(DIRECTION dir);
 void sample_obj_move(void);
+BASE_SELECT_STATE base_select_state = BS_NONE;
+SYSTEM_MESSAGE sys_messages = { 0 };
+//void handle_spacebar(CURSOR cursor);
 POSITION sample_obj_next_position(void);
 
 
@@ -17,6 +25,8 @@ POSITION sample_obj_next_position(void);
 int sys_clock = 0;		// system-wide clock(ms)
 CURSOR cursor = { { 1, 1 }, {1, 1} };
 
+OBJECT objects[MAX_OBJECTS];
+int object_count = 0;
 
 /* ================= game data =================== */
 char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH] = { 0 };
@@ -28,13 +38,103 @@ RESOURCE resource = {
 	.population_max = 0
 };
 
-OBJECT_SAMPLE obj = {
+OBJECT obj = {
 	.pos = {1, 1},
 	.dest = {MAP_HEIGHT - 2, MAP_WIDTH - 2},
 	.repr = 'o',
 	.speed = 300,
 	.next_move_time = 300
+
 };
+
+void add_system_message(const char* message) {
+	if (sys_messages.message_count >= MAX_SYSTEM_MESSAGES) {
+		for (int i = 0; i < MAX_SYSTEM_MESSAGES - 1; i++) {
+			strcpy_s(sys_messages.messages[i], sizeof(sys_messages.messages[i]), sys_messages.messages[i + 1]);
+		}
+		sys_messages.current_index = MAX_SYSTEM_MESSAGES - 1;
+	}
+	else {
+		sys_messages.current_index = sys_messages.message_count;
+		sys_messages.message_count++;
+	}
+
+	// 새 메시지 추가
+	strcpy_s(sys_messages.messages[sys_messages.current_index], sizeof(sys_messages.messages[0]), message);
+}
+
+void init_game_objects() {
+	// 아트레이디스 본부 (좌하단)
+	map[0][MAP_HEIGHT - 3][1] = 'B';
+	map[0][MAP_HEIGHT - 3][2] = 'B';
+	map[0][MAP_HEIGHT - 2][1] = 'B';
+	map[0][MAP_HEIGHT - 2][2] = 'B';
+
+	// 하코넨 본부 (우상단)
+	map[0][1][MAP_WIDTH - 3] = 'B';
+	map[0][1][MAP_WIDTH - 2] = 'B';
+	map[0][2][MAP_WIDTH - 3] = 'B';
+	map[0][2][MAP_WIDTH - 2] = 'B';
+
+	// 장판 배치
+	map[0][MAP_HEIGHT - 3][3] = 'P';
+	map[0][MAP_HEIGHT - 3][4] = 'P';
+	map[0][MAP_HEIGHT - 2][3] = 'P';
+	map[0][MAP_HEIGHT - 2][4] = 'P';
+
+	map[0][1][MAP_WIDTH - 5] = 'P';
+	map[0][1][MAP_WIDTH - 4] = 'P';
+	map[0][2][MAP_WIDTH - 5] = 'P';
+	map[0][2][MAP_WIDTH - 4] = 'P';
+
+	// 스파이스 매장지 배치
+	map[0][MAP_HEIGHT - 6][5] = 'S';
+	map[0][4][MAP_WIDTH - 6] = 'S';
+
+	// 중립 샌드웜 배치
+	map[0][MAP_HEIGHT / 2][MAP_WIDTH / 2] = 'W';
+	map[0][MAP_HEIGHT / 2 - 1][MAP_WIDTH / 2 + 1] = 'W';
+
+	// 바위 배치
+	map[0][9][38] = 'R';
+	map[0][6][14] = 'R';
+	map[0][14][36] = 'R';
+	// 2x2 바위들
+	map[0][10][25] = 'R';
+	map[0][10][26] = 'R';
+	map[0][11][25] = 'R';
+	map[0][11][26] = 'R';
+
+	map[0][3][21] = 'R';
+	map[0][3][22] = 'R';
+	map[0][4][21] = 'R';
+	map[0][4][22] = 'R';
+	
+}
+
+void spawn_initial_units() {
+	// 아트레이디스 하베스터
+	OBJECT harvester1 = {
+		.pos = {MAP_HEIGHT - 4, 1},
+		.repr = 'H',
+		.team = 1,
+		.hp = 100,
+		.max_hp = 100
+	};
+	objects[object_count++] = harvester1;
+	map[1][harvester1.pos.row][harvester1.pos.column] = harvester1.repr;
+
+	// 하코넨 하베스터
+	OBJECT harvester2 = {
+		.pos = {5, MAP_WIDTH - 4},
+		.repr = 'H',
+		.team = 2,
+		.hp = 100,
+		.max_hp = 100
+	};
+	objects[object_count++] = harvester2;
+	map[1][harvester2.pos.row][harvester2.pos.column] = harvester2.repr;
+}
 
 /* ================= main() =================== */
 int main(void) {
@@ -48,14 +148,53 @@ int main(void) {
 		// loop 돌 때마다(즉, TICK==10ms마다) 키 입력 확인
 		KEY key = get_key();
 
-		// 키 입력이 있으면 처리
 		if (is_arrow_key(key)) {
 			cursor_move(ktod(key));
 		}
 		else {
-			// 방향키 외의 입력
 			switch (key) {
 			case k_quit: outro();
+			case k_space: // 스페이스 키로 건물 선택
+				if (map[0][cursor.current.row][cursor.current.column] == 'B') {
+					base_select_state = BS_BASE_SELECTED;
+					add_system_message("Base selected");
+				}
+				break;
+			case k_esc: // ESC 키로 선택 취소
+				if (base_select_state != BS_NONE) {
+					base_select_state = BS_NONE;
+					add_system_message("Base selection canceled");
+				}
+				break;
+			case 'h': // 'H' 키로 하베스터 생산
+				if (base_select_state == BS_BASE_SELECTED) {
+					if (resource.spice >= 50) { // 생산 비용 설정
+						// 하베스터 생산 로직
+						OBJECT new_harvester = {
+							.pos = {cursor.current.row, cursor.current.column},
+							.repr = 'H',
+							.team = 1,
+							.hp = 100,
+							.max_hp = 100
+						};
+
+						// 주변 빈 타일에 하베스터 배치
+						if (map[1][new_harvester.pos.row][new_harvester.pos.column] == -1) {
+							objects[object_count++] = new_harvester;
+							map[1][new_harvester.pos.row][new_harvester.pos.column] = new_harvester.repr;
+
+							resource.spice -= 50; // 생산 비용 차감
+							add_system_message("A new harvester ready");
+						}
+						else {
+							add_system_message("Cannot place harvester here");
+						}
+					}
+					else {
+						add_system_message("Not enough spice");
+					}
+				}
+				break;
 			case k_none:
 			case k_undef:
 			default: break;
@@ -74,8 +213,12 @@ int main(void) {
 
 /* ================= subfunctions =================== */
 void intro(void) {
-	printf("DUNE 1.5\n");
-	Sleep(2000);
+	printf(" DDDD   U   U   N   N   EEEEE	\n");
+	printf(" D   D  U   U   NN  N   E		\n");
+	printf(" D   D  U   U   N N N   EEEE	\n");
+	printf(" D   D  U   U   N  NN   E		\n");
+	printf(" DDDD   UUUUU   N   N   EEEEE	\n");
+	Sleep(1000);
 	system("cls");
 }
 
@@ -107,22 +250,64 @@ void init(void) {
 	}
 
 	// object sample
-	map[1][obj.pos.row][obj.pos.column] = 'o';
+	init_game_objects();
+	spawn_initial_units();
 }
 
-// (가능하다면) 지정한 방향으로 커서 이동
+
+
+DIRECTION last_direction = d_stay;   // 마지막 방향 입력
+int consecutive_moves = 0;           // 연속된 방향 입력 횟수
+clock_t last_move_time = 0;          // 마지막 입력 시간
+
 void cursor_move(DIRECTION dir) {
 	POSITION curr = cursor.current;
-	POSITION new_pos = pmove(curr, dir);
+	clock_t current_time = clock();
 
-	// validation check
-	if (1 <= new_pos.row && new_pos.row <= MAP_HEIGHT - 2 && \
-		1 <= new_pos.column && new_pos.column <= MAP_WIDTH - 2) {
+	// 연속 입력 시간 차이 계산
+	double time_diff = (double)(current_time - last_move_time) / CLOCKS_PER_SEC;
 
-		cursor.previous = cursor.current;
-		cursor.current = new_pos;
+	// 0.3초 이내에 같은 방향 입력이 들어오면 연속 이동 증가
+	if (last_direction == dir && time_diff <= 0.3) {
+		consecutive_moves++;
 	}
+	else {
+		consecutive_moves = 1;  // 조건에 맞지 않으면 연속 이동 초기화
+	}
+
+	last_direction = dir;
+	last_move_time = current_time;
+
+	// 이동 거리: 연속 입력이 두 번 이상이면 4칸, 아니면 1칸 이동
+	int move_distance = (consecutive_moves >= 2) ? 4 : 1;
+
+	POSITION new_pos = curr;  // 최종 위치를 계산할 변수
+
+	// 이동 거리만큼 반복하여 이동
+	for (int i = 0; i < move_distance; i++) {
+		POSITION next_pos = pmove(new_pos, dir);
+
+		// 맵 경계를 벗어나지 않도록 validation check 유지
+		if (1 <= next_pos.row && next_pos.row <= MAP_HEIGHT - 2 &&
+			1 <= next_pos.column && next_pos.column <= MAP_WIDTH - 2) {
+			new_pos = next_pos; // 최종 위치만 갱신
+		}
+		else {
+			break; // 맵 경계를 벗어나면 이동 중단
+		}
+	}
+
+	// 이동이 완료된 후에 한 번만 이전 위치와 현재 위치를 갱신
+	cursor.previous = cursor.current;
+	cursor.current = new_pos;
 }
+
+
+
+
+
+
+
 
 /* ================= sample object movement =================== */
 POSITION sample_obj_next_position(void) {
